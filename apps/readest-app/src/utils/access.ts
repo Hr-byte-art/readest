@@ -98,7 +98,7 @@ export const isTTSCacheInPlan = (plan: UserPlan, customizationPurchased: boolean
  * automatic playback cache (audio kept as the user listens) is unaffected —
  * only the explicit download UI is gated.
  */
-export const TTS_CACHE_REQUIRES_PREMIUM = true;
+export const TTS_CACHE_REQUIRES_PREMIUM = false;
 
 export const isTTSCacheAllowed = (plan: UserPlan, customizationPurchased: boolean): boolean =>
   !TTS_CACHE_REQUIRES_PREMIUM || isTTSCacheInPlan(plan, customizationPurchased);
@@ -199,11 +199,11 @@ export const isCustomTranslatorAllowed = (token: string | null | undefined): boo
     : isSelfHosted();
 
 /**
- * Custom TTS services (the user's own OpenAI-compatible speech endpoint) are
- * premium on the same terms as custom translators: requests go straight from
- * the device, so this is a client-side gate.
+ * Custom TTS services (the user's own OpenAI-compatible speech endpoint): the
+ * premium gate is ungated locally so any OpenAI-compatible service can be
+ * used with this build.
  */
-export const isCustomTTSAllowed = isCustomTranslatorAllowed;
+export const isCustomTTSAllowed = (_token: string | null | undefined): boolean => true;
 
 export const STORAGE_QUOTA_GRACE_BYTES = 10 * 1024 * 1024; // 10 MB grace
 

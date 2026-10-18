@@ -78,11 +78,16 @@ describe('WebAudioPlayer scheduling', () => {
 });
 
 describe('WebAudioPlayer backpressure', () => {
-  test('third chunk waits until the first finishes while visible', async () => {
+  test('fourth chunk waits until an earlier one finishes while visible', async () => {
     const { ctx, player, onEvent } = setup();
     await player.ensureContext();
     const gen = player.startSession(onEvent);
-    player.scheduleChunk(gen, makeBuffer(2), { trimStartSec: 0, mediaScale: 1, gapSec: 0 });
+    // Budget is 4 unfinished chunks while visible, so the scheduler is ready
+    // with up to 3 queued; the 4th crosses the budget and must wait.
+    for (let i = 0; i < 3; i++) {
+      player.scheduleChunk(gen, makeBuffer(2), { trimStartSec: 0, mediaScale: 1, gapSec: 0 });
+    }
+    expect(await player.waitUntilReady(gen)).toBe(true);
     player.scheduleChunk(gen, makeBuffer(2), { trimStartSec: 0, mediaScale: 1, gapSec: 0 });
     let resolved: boolean | null = null;
     const wait = player.waitUntilReady(gen).then((r) => {
@@ -95,12 +100,13 @@ describe('WebAudioPlayer backpressure', () => {
     expect(await wait).toBe(true);
   });
 
-  test('hidden visibility deepens the pending-chunk budget to 5', async () => {
+  test('hidden visibility deepens the pending-chunk budget to 7', async () => {
     setVisibility('hidden');
     const { player, onEvent } = setup();
     await player.ensureContext();
     const gen = player.startSession(onEvent);
-    for (let i = 0; i < 4; i++) {
+    // 6 queued exceeds the visible budget (4) but is within the hidden one (7).
+    for (let i = 0; i < 6; i++) {
       player.scheduleChunk(gen, makeBuffer(1), { trimStartSec: 0, mediaScale: 1, gapSec: 0 });
     }
     expect(await player.waitUntilReady(gen)).toBe(true);
@@ -256,7 +262,8 @@ describe('WebAudioPlayer abort', () => {
     const { ctx, player, events, onEvent } = setup();
     await player.ensureContext();
     const gen = player.startSession(onEvent);
-    for (let i = 0; i < 3; i++) {
+    // 4 queued reaches the visible pending budget, so the wait parks.
+    for (let i = 0; i < 4; i++) {
       player.scheduleChunk(gen, makeBuffer(2), { trimStartSec: 0, mediaScale: 1, gapSec: 0 });
     }
     const wait = player.waitUntilReady(gen);

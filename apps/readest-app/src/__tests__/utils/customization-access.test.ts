@@ -4,6 +4,7 @@ import {
   getCustomizationPurchased,
   isCustomizationAllowed,
   isCustomTranslatorAllowed,
+  isCustomTTSAllowed,
   isSelfHosted,
 } from '@/utils/access';
 
@@ -106,5 +107,17 @@ describe('isCustomTranslatorAllowed', () => {
   it('allows a signed-out reader on a self-hosted deployment', () => {
     vi.stubEnv('NEXT_PUBLIC_SELF_HOSTED', 'true');
     expect(isCustomTranslatorAllowed(null)).toBe(true);
+  });
+});
+
+// This build ships with the Custom TTS premium gate ungated: the user's own
+// OpenAI-compatible speech endpoint is usable on any plan, signed in or out.
+describe('isCustomTTSAllowed', () => {
+  it('allows a free user', () => {
+    expect(isCustomTTSAllowed(mockToken({ plan: 'free' }))).toBe(true);
+  });
+
+  it('allows a signed-out reader', () => {
+    expect(isCustomTTSAllowed(null)).toBe(true);
   });
 });

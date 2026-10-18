@@ -106,8 +106,12 @@ interface PlayerSession {
 const SCHEDULE_SAFETY_SEC = 0.03;
 // Screen-off JS throttling must not starve the queue between onended and the
 // next schedule, so the pending budget deepens when the page is hidden.
-const MAX_PENDING_VISIBLE = 2;
-const MAX_PENDING_HIDDEN = 5;
+// Deepened from 2 to 4: with a per-sentence scheduler each queued chunk is one
+// sentence (~3-8s), so 2 left the playhead ~a sentence ahead of synthesis on a
+// slow network — any round-trip longer than the sounding sentence stalled
+// playback. 4 gives the scheduler ~3 sentences of slack to hide jitter in.
+const MAX_PENDING_VISIBLE = 4;
+const MAX_PENDING_HIDDEN = 7;
 // Bounds decoded PCM at slow rates (0.2x stretches a 30s sentence to 150s).
 const MAX_AHEAD_SEC = 60;
 

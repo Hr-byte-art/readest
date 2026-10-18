@@ -243,42 +243,43 @@ describe('EdgeTTSClient Web Audio playback', () => {
       { name: '1', text: 'Second sentence.', language: 'en' },
       { name: '2', text: 'Third sentence.', language: 'en' },
       { name: '3', text: 'Fourth sentence.', language: 'en' },
+      { name: '4', text: 'Fifth sentence.', language: 'en' },
+      { name: '5', text: 'Sixth sentence.', language: 'en' },
     ];
     const client = await startClient();
     await client.setRate(1);
     const { done } = collectSpeak(client, new AbortController().signal);
-    // Initial scheduling of chunks
+    // Initial scheduling fills the visible pending budget (4 chunks); the rest
+    // wait for playback to free capacity.
     await flush();
     await flush();
     let sources = ctx().sources;
-    const [first, second] = sources;
-    expect(second!.startedAt! - first!.endTime).toBeCloseTo(0.15, 5);
+    expect(sources.length).toBe(4);
+    expect(sources[1]!.startedAt! - sources[0]!.endTime).toBeCloseTo(0.15, 5);
 
-    // Change gap mid-session
+    // Change gap mid-session. A chunk's gap is fixed when that chunk is
+    // scheduled, so those already queued keep the old value; only the next one
+    // scheduled picks the new value up.
     client.setSentenceGap(0.3);
 
-    // Advance playback to trigger chunk 0's onended and free scheduling capacity
-    // for chunk 2 to be scheduled. Then advance more to free chunk 1 so chunk 3 is scheduled.
+    // Free chunk 0, letting chunk 4 be scheduled — still with chunk 3's gap.
     await ctx().advanceTo(1.1);
     await flush();
-
-    // Chunk 2 should now be scheduled with the old gap (from chunk 1's timing)
     sources = ctx().sources;
-    expect(sources.length).toBeGreaterThanOrEqual(3);
+    expect(sources.length).toBe(5);
+    expect(sources[4]!.startedAt! - sources[3]!.endTime).toBeCloseTo(0.15, 5);
 
-    // Advance further to free chunk 2, allowing chunk 3 to be scheduled with the new gap
-    await ctx().advanceTo(3.4);
+    // Free chunk 1, letting chunk 5 be scheduled. The gap after chunk 4 — the
+    // first chunk scheduled after the change — is the new value.
+    await ctx().advanceTo(2.3);
     await flush();
-
     sources = ctx().sources;
-    expect(sources.length).toBeGreaterThanOrEqual(4);
+    expect(sources.length).toBe(6);
+    const fourthChunk = sources[4]!;
+    const fifthChunk = sources[5]!;
+    expect(fifthChunk.startedAt! - fourthChunk.endTime).toBeCloseTo(0.3, 5);
 
-    // Chunk 2 is the first chunk scheduled after setSentenceGap, so the gap
-    // preceding chunk 3 (chunk 2's schedule-time gap) reflects the new value.
-    const [, , thirdChunk, fourthChunk] = sources;
-    expect(fourthChunk!.startedAt! - thirdChunk!.endTime).toBeCloseTo(0.3, 5);
-
-    await ctx().advanceTo(5);
+    await ctx().advanceTo(8);
     await done;
   });
 
